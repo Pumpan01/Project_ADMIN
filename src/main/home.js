@@ -1,162 +1,497 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import {
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Drawer,
+  Box,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  useMediaQuery,
+  CssBaseline,
+  Grid,
+  Paper,
+  CircularProgress,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import PeopleIcon from "@mui/icons-material/People";
+import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
+import BuildIcon from "@mui/icons-material/Build";
+import CampaignIcon from "@mui/icons-material/Campaign";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 
-function HomePage() {
+function DashboardPage() {
+  // state ต่าง ๆ
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [roomsData, setRoomsData] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [repairs, setRepairs] = useState([]);
+  const [loadingRepairs, setLoadingRepairs] = useState(false);
+  const [bills, setBills] = useState([]);
+  const [loadingBills, setLoadingBills] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const isMobile = useMediaQuery("(max-width:768px)");
 
-  // ดึงข้อมูลผู้ใช้
+  // ดึงข้อมูลจาก API
   const fetchUsers = async () => {
-    setLoading(true);
+    setLoadingUsers(true);
     try {
-      const response = await fetch("http://localhost:4000/api/users");
+      const response = await fetch("https://api.horplus.work/api/users");
       const data = await response.json();
       setUsers(data);
     } catch (error) {
       console.error("Error fetching users:", error);
-      // คุณอาจเพิ่ม UI แสดง error หรือแจ้งเตือนได้
     } finally {
-      setLoading(false);
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchRooms = async () => {
+    setLoadingRooms(true);
+    try {
+      const response = await fetch("https://api.horplus.work/api/rooms");
+      const data = await response.json();
+      setRoomsData(data);
+    } catch (error) {
+      console.error("Error fetching rooms:", error);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  const fetchRepairs = async () => {
+    setLoadingRepairs(true);
+    try {
+      const response = await fetch("https://api.horplus.work/api/repairs");
+      const data = await response.json();
+      setRepairs(data);
+    } catch (error) {
+      console.error("Error fetching repairs:", error);
+    } finally {
+      setLoadingRepairs(false);
+    }
+  };
+
+  const fetchBills = async () => {
+    setLoadingBills(true);
+    try {
+      const response = await fetch(
+        "https://api.horplus.work/api/bills?is_admin=true"
+      );
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        console.error("Error fetching bills:", data.error || data);
+        setBills([]);
+      } else {
+        setBills(data);
+      }
+    } catch (error) {
+      console.error("Error fetching bills:", error);
+    } finally {
+      setLoadingBills(false);
     }
   };
 
   useEffect(() => {
     fetchUsers();
+    fetchRooms();
+    fetchRepairs();
+    fetchBills();
   }, []);
 
+  const countAvailable = roomsData.filter(
+    (room) => room.status === "available"
+  ).length;
+  const countUnpaid = bills.filter(
+    (bill) => bill.payment_state === "unpaid"
+  ).length;
+  const countRepair = repairs.filter((room) => room.status !== "เสร็จสิ้น").length;
+
+
+  const menuItems = [
+    { text: "ผู้ใช้", link: "/user", icon: <PeopleIcon /> },
+    { text: "ห้อง", link: "/rooms", icon: <MeetingRoomIcon /> },
+    { text: "แจ้งซ่อม", link: "/repair", icon: <BuildIcon /> },
+    { text: "ประกาศ", link: "/announcements", icon: <CampaignIcon /> },
+    { text: "บิล", link: "/admin/bills", icon: <ReceiptLongIcon /> },
+  ];
+
+  const drawer = (
+    <Box
+      onClick={() => setDrawerOpen(false)}
+      sx={{ textAlign: "center", color: "#fff" }}
+    >
+      <Typography variant="h4" sx={{ my: 2 }}>
+        Dashboard
+      </Typography>
+      <Divider sx={{ backgroundColor: "hsla(0, 0%, 100%, 0.3)" }} />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton component={Link} to={item.link}>
+              <ListItemIcon sx={{ color: "#fff" }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+
   return (
-    <div>
-      {/* Quick Navigation */}
-      <div style={styles.navigationContainer}>
-        <h2 style={styles.navigationTitle}>เมนูการจัดการ</h2>
-        <div style={styles.navigationButtons}>
-          <Link to="/user" style={styles.navButton}>
-            จัดการผู้ใช้
-          </Link>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "linear-gradient(to bottom, #E07B39 40%, #DCE4C9 10%)",
+      }}
+    >
+      <CssBaseline />
 
-          {/* เพิ่มปุ่มไปยังหน้า Rooms */}
-          <Link to="/rooms" style={styles.navButton}>
-            จัดการห้อง
-          </Link>
+      <AppBar
+        position="fixed"
+        sx={{
+          backgroundColor: "#E07B39",
+          boxShadow: "0px 4px 15px #B6A28E",
+        }}
+      >
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64, md: 64 } }}>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={() => setDrawerOpen(true)}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography
+            variant="h3"
+            noWrap
+            sx={{
+              flexGrow: 1,
+              textAlign: "center",
+              fontSize: { xs: "2rem", sm: "2.5rem", md: "2.5rem" },
+              fontWeight: "bold",
+            }}
+          >
+            ระบบการจัดการหอพัก
+          </Typography>
+        </Toolbar>
+      </AppBar>
 
-          <Link to="/repair" style={styles.navButton}>
-            การแจ้งซ่อม
-          </Link>
-          <Link to="/announcements" style={styles.navButton}>
-            จัดการประกาศ
-          </Link>
-          <Link to="/admin/bills" style={styles.navButton}>
-            บิล
-          </Link>
-        </div>
-      </div>
+      <Drawer
+        variant="temporary"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          "& .MuiDrawer-paper": {
+            boxSizing: "border-box",
+            width: 240,
+            backgroundColor: "#4F4A45",
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
 
-      {/* Sidebar รายชื่อผู้ใช้ */}
-      <aside style={styles.sidebar}>
-        <h2 style={styles.sidebarTitle}>รายชื่อผู้ใช้</h2>
+      <Box
+        sx={{
+          flexGrow: 1,
+          pt: { xs: 15, sm: 20 },
+          p: { xs: 1, sm: 2 },
+          pb: 5,
+          overflowY: "auto",
+        }}
+      >
+        <Toolbar sx={{ minHeight: 120 }} />
 
-        {loading ? (
-          <p>กำลังโหลดข้อมูล...</p>
-        ) : (
-          <ul style={styles.userList}>
-            {users.map((user) => (
-              <li key={user.user_id} style={styles.userItem}>
-                <strong>{user.full_name || "ไม่ระบุชื่อ"}</strong>
-                <p>ห้อง: {user.room_number ? user.room_number : "ไม่มีห้อง"}</p>
-                <p>โทร: {user.phone_number || "-"}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </aside>
-    </div>
+        <Box
+          sx={{
+            pt: 4,
+            mx: "auto",
+            width: { xs: "95%", sm: "90%", md: "1000px" },
+          }}
+        >
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={8}>
+              <Paper
+                sx={{
+                  p: { xs: 1, sm: 2 },
+                  borderRadius: 2,
+                  boxShadow: "0px 4px 8px rgba(0,0,0,0.2)",
+                }}
+              >
+                <Typography
+                  variant="h5"
+                  sx={{
+                    mb: 2,
+                    fontSize: { xs: "1rem", sm: "1.25rem" },
+                    fontWeight: "bold",
+                    textAlign: "center",
+                  }}
+                >
+                  รายการผู้ใช้
+                </Typography>
+                {loadingUsers ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: 80,
+                    }}
+                  >
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      height: "400px",
+                      overflowY: "auto",
+                      overflowX: "auto",
+                      border: "1px solid #ccc",
+                      borderRadius: 1,
+                      p: 1,
+                    }}
+                  >
+                    {users.map((user) => (
+                      <Paper
+                        key={user.user_id}
+                        sx={{
+                          p: 2,
+                          borderRadius: 1,
+                          backgroundColor: "#F5F5DC",
+                          boxShadow: "0px 2px 5px rgba(0,0,0,0.1)",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: "bold" }}>
+                          User: {user.username}
+                        </Typography>
+                        <Typography>
+                          ชื่อเต็ม: {user.full_name || "-"}
+                        </Typography>
+                        <Typography>
+                          เบอร์โทร: {user.phone_number || "-"}
+                        </Typography>
+                        <Typography>ห้อง: {user.room_number || "-"}</Typography>
+                        <Typography>สิทธิ์: {user.role || "-"}</Typography>
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: { xs: 1, sm: 2 },
+                }}
+              >
+                <Paper
+                  sx={{
+                    p: { xs: 1, sm: 2 },
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0px 4px 8px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  {loadingRooms ? (
+                    <CircularProgress size={30} sx={{ mr: 2 }} />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: { xs: 35, sm: 50 },
+                        height: { xs: 35, sm: 50 },
+                        borderRadius: "50%",
+                        backgroundColor: "#E07B39",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mr: 2,
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        sx={{ fontSize: { xs: "0.9rem", sm: "1.2rem" } }}
+                      >
+                        {countAvailable}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Typography sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}>
+                    ห้องที่ว่าง
+                  </Typography>
+                </Paper>
+
+                <Paper
+                  sx={{
+                    p: { xs: 1, sm: 2 },
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0px 4px 8px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  {loadingBills ? (
+                    <CircularProgress size={30} sx={{ mr: 2 }} />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: { xs: 35, sm: 50 },
+                        height: { xs: 35, sm: 50 },
+                        borderRadius: "50%",
+                        backgroundColor: "#E07B39",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mr: 2,
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        sx={{ fontSize: { xs: "0.9rem", sm: "1.2rem" } }}
+                      >
+                        {countUnpaid}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Typography sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}>
+                    ห้องที่ยังค้างชำระ
+                  </Typography>
+                </Paper>
+
+                <Paper
+                  sx={{
+                    p: { xs: 1, sm: 2 },
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0px 4px 8px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  {loadingRepairs ? (
+                    <CircularProgress size={30} sx={{ mr: 2 }} />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: { xs: 35, sm: 50 },
+                        height: { xs: 35, sm: 50 },
+                        borderRadius: "50%",
+                        backgroundColor: "#E07B39",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mr: 2,
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        sx={{ fontSize: { xs: "0.9rem", sm: "1.2rem" } }}
+                      >
+                        {countRepair}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Typography sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}>
+                    ห้องที่ซ่อม
+                  </Typography>
+                </Paper>
+              </Box>
+            </Grid>
+          </Grid>
+
+          {/* ส่วนแสดงรายการแจ้งซ่อม */}
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item xs={12}>
+              <Paper
+                sx={{
+                  p: { xs: 1, sm: 2 },
+                  borderRadius: 2,
+                  boxShadow: "0px 4px 8px rgba(0,0,0,0.2)",
+                }}
+              >
+                <Typography
+                  variant="h5"
+                  sx={{
+                    mb: 2,
+                    fontSize: { xs: "1rem", sm: "1.25rem" },
+                    fontWeight: "bold",
+                    textAlign: "center",
+                  }}
+                >
+                  รายการแจ้งซ่อม
+                </Typography>
+                <Box
+                  sx={{
+                    height: "400px",
+                    overflowY: "auto",
+                    overflowX: "auto",
+                    border: "1px solid #ccc",
+                    borderRadius: 1,
+                    p: 1,
+                  }}
+                >
+                  {loadingRepairs ? (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        height: 80,
+                      }}
+                    >
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+                    >
+                      {repairs.map((repair) => (
+                        <Paper
+                          key={repair.repair_id || repair.id}
+                          sx={{
+                            p: 2,
+                            borderRadius: 1,
+                            backgroundColor: "#F5F5DC",
+                            boxShadow: "0px 2px 5px rgba(0,0,0,0.1)",
+                          }}
+                        >
+                          <Typography sx={{ fontWeight: "bold" }}>
+                            ห้อง: {repair.room_number}
+                          </Typography>
+                          <Typography>
+                            รายละเอียด: {repair.description}
+                          </Typography>
+                          <Typography>สถานะ: {repair.status}</Typography>
+                        </Paper>
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
-export default HomePage;
-
-const styles = {
-  container: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "1rem",
-    fontFamily: "Arial, sans-serif",
-  },
-  header: {
-    backgroundColor: "#ff6600",
-    color: "white",
-    textAlign: "center",
-    padding: "2rem",
-    borderRadius: "12px",
-    marginBottom: "2rem",
-    boxShadow: "0px 4px 15px rgba(0, 0, 0, 0.2)",
-  },
-  headerTitle: {
-    margin: 0,
-    fontSize: "2.5rem",
-  },
-  headerSubtitle: {
-    fontSize: "1.2rem",
-    marginTop: "0.5rem",
-  },
-  navigationContainer: {
-    textAlign: "center",
-    marginBottom: "2rem",
-  },
-  navigationTitle: {
-    fontSize: "1.8rem",
-    color: "#ff6600",
-    marginBottom: "1rem",
-  },
-  navigationButtons: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "1.5rem",
-    flexWrap: "wrap", // รองรับการแสดงผลหลายแถว
-  },
-  navButton: {
-    display: "inline-block",
-    padding: "1.2rem 1.8rem",
-    backgroundColor: "#ff6600",
-    color: "white",
-    textDecoration: "none",
-    fontSize: "1rem",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-    transition: "background-color 0.3s, transform 0.3s, box-shadow 0.3s",
-    width: "150px",
-    textAlign: "center",
-  },
-  sidebar: {
-    marginTop: "2rem",
-    backgroundColor: "white",
-    padding: "1rem",
-    borderRadius: "12px",
-    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-    overflowY: "auto",
-    maxHeight: "500px",
-  },
-  sidebarTitle: {
-    fontSize: "1.5rem",
-    color: "#ff6600",
-    borderBottom: "2px solid #ff6600",
-    paddingBottom: "0.5rem",
-    marginBottom: "1rem",
-  },
-  userList: {
-    listStyle: "none",
-    padding: 0,
-    margin: 0,
-  },
-  userItem: {
-    backgroundColor: "#f9f9f9",
-    border: "1px solid #ddd",
-    borderRadius: "8px",
-    padding: "1rem",
-    marginBottom: "1rem",
-    boxShadow: "0px 2px 5px rgba(0, 0, 0, 0.1)",
-    transition: "transform 0.3s ease, box-shadow 0.3s ease",
-  },
-  // สามารถเพิ่ม Media Query ในไฟล์ CSS จริง หรือจะใช้ styled-components ก็ได้
-};
+export default DashboardPage;

@@ -1,63 +1,58 @@
 import React, { useState, useEffect } from "react";
 import {
-  Typography,
+  AppBar,
+  Box,
   Button,
-  TextField,
-  Paper,
-  Container,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  CircularProgress,
+  CssBaseline,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
-  Tooltip,
-  CircularProgress,
-  Box,
-  AppBar,
-  Toolbar,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
   Drawer,
+  FormControl,
+  IconButton,
+  InputLabel,
   List,
   ListItem,
+  ListItemButton,
+  ListItemIcon,
   ListItemText,
+  MenuItem,
+  Paper,
+  Select,
+  TextField,
+  Toolbar,
+  Tooltip,
+  Typography,
+  Divider,
 } from "@mui/material";
 import Swal from "sweetalert2";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import MenuIcon from "@mui/icons-material/Menu";
+import HomeIcon from "@mui/icons-material/Home";
+import PeopleIcon from "@mui/icons-material/People";
+import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
+import BuildIcon from "@mui/icons-material/Build";
+import CampaignIcon from "@mui/icons-material/Campaign";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useNavigate } from "react-router-dom";
 
 function UserManagement() {
   const navigate = useNavigate();
 
-  // ==============================
-  // 1) State สำหรับการแสดงผล
-  // ==============================
+  // State สำหรับการแสดงผล
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ==============================
-  // 2) State สำหรับ Rooms ที่ว่าง
-  // ==============================
+  // State สำหรับ Rooms ที่ว่าง
   const [availableRooms, setAvailableRooms] = useState([]);
 
-  // ==============================
-  // 3) State สำหรับ Dialog + ฟอร์ม
-  // ==============================
+  // State สำหรับ Dialog + ฟอร์ม
   const [openDialog, setOpenDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-
-  // ฟอร์มข้อมูลผู้ใช้
   const [formData, setFormData] = useState({
     user_id: null,
     username: "",
@@ -66,16 +61,49 @@ function UserManagement() {
     phone_number: "",
     line_id: "",
     role: "",
-    room_number: null, // เก็บเป็นตัวเลข (หรือ null) สำหรับห้อง
+    room_number: null,
   });
 
-  // ==============================
-  // 4) ฟังก์ชันดึงข้อมูลผู้ใช้
-  // ==============================
+  // State สำหรับ Sidebar
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // เมนูสำหรับ Sidebar
+  const menuItems = [
+    { text: "Home", link: "/home", icon: <HomeIcon /> },
+    { text: "ผู้ใช้", link: "/user", icon: <PeopleIcon /> },
+    { text: "ห้อง", link: "/rooms", icon: <MeetingRoomIcon /> },
+    { text: "แจ้งซ่อม", link: "/repair", icon: <BuildIcon /> },
+    { text: "ประกาศ", link: "/announcements", icon: <CampaignIcon /> },
+    { text: "บิล", link: "/admin/bills", icon: <ReceiptLongIcon /> },
+  ];
+
+  const drawer = (
+    <Box
+      onClick={() => setDrawerOpen(false)}
+      sx={{ textAlign: "center", color: "#fff" }}
+    >
+      <Typography variant="h4" sx={{ my: 2 }}>
+        Dashboard
+      </Typography>
+      <Divider sx={{ backgroundColor: "hsla(0, 0%, 100%, 0.3)" }} />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton href={item.link}>
+              <ListItemIcon sx={{ color: "#fff" }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+
+  // ฟังก์ชันดึงข้อมูลผู้ใช้
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:4000/api/users");
+      const response = await fetch("https://api.horplus.work/api/users");
       const data = await response.json();
       setUsers(data || []);
     } catch (error) {
@@ -89,13 +117,11 @@ function UserManagement() {
     }
   };
 
-  // ==============================
-  // 5) ฟังก์ชันดึง "ห้องที่ว่าง"
-  // ==============================
+  // ฟังก์ชันดึง "ห้องที่ว่าง"
   const fetchAvailableRooms = async () => {
     try {
       const res = await fetch(
-        "http://localhost:4000/api/rooms-by-status?status=available"
+        "https://api.horplus.work/api/rooms-by-status?status=available"
       );
       const rooms = await res.json();
       setAvailableRooms(rooms || []);
@@ -104,15 +130,12 @@ function UserManagement() {
     }
   };
 
-  // ดึง users + rooms เมื่อ Component mount
   useEffect(() => {
     fetchUsers();
     fetchAvailableRooms();
   }, []);
 
-  // ==============================
   // ฟังก์ชันแจ้งเตือน (Swal)
-  // ==============================
   const showSwalError = (text, title = "เกิดข้อผิดพลาด") => {
     Swal.fire({
       icon: "error",
@@ -135,12 +158,9 @@ function UserManagement() {
     });
   };
 
-  // ==============================
-  // 6) เปิด/ปิด Dialog + ฟอร์ม
-  // ==============================
+  // เปิด/ปิด Dialog + ฟอร์ม
   const handleOpenDialog = (user = null) => {
     if (user) {
-      // กรณีแก้ไข
       setFormData({
         user_id: user.user_id,
         username: user.username,
@@ -153,7 +173,6 @@ function UserManagement() {
       });
       setIsEditing(true);
     } else {
-      // เพิ่มใหม่
       setFormData({
         user_id: null,
         username: "",
@@ -171,15 +190,12 @@ function UserManagement() {
 
   const handleCloseDialog = () => setOpenDialog(false);
 
-  // เมื่อ input เปลี่ยนค่า
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ==============================
-  // 7) บันทึกผู้ใช้ (Create/Update)
-  // ==============================
+  // บันทึกผู้ใช้ (Create/Update)
   const handleSaveUser = async () => {
     if (!formData.username) {
       showSwalError("โปรดระบุชื่อผู้ใช้งาน");
@@ -187,6 +203,16 @@ function UserManagement() {
     }
     if (!formData.role) {
       showSwalError("โปรดเลือกบทบาท");
+      return;
+    }
+    if (
+      formData.role === "user" &&
+      (!formData.room_number || formData.room_number === "")
+    ) {
+      showSwalError(
+        "โปรดเลือกห้องที่พักสำหรับผู้ใช้งาน",
+        "ห้องที่พักไม่ถูกเลือก"
+      );
       return;
     }
     if (!isEditing && !formData.password) {
@@ -202,13 +228,10 @@ function UserManagement() {
     }
 
     const url = isEditing
-      ? `http://localhost:4000/api/users/${formData.user_id}`
-      : "http://localhost:4000/api/register";
+      ? `https://api.horplus.work/api/users/${formData.user_id}`
+      : "https://api.horplus.work/api/register";
     const method = isEditing ? "PUT" : "POST";
-
-    // Clone payload
     const payload = { ...formData };
-    // หากเป็นกรณีแก้ไขแต่ไม่เปลี่ยนรหัสผ่าน ให้ลบ password ออกจาก payload
     if (isEditing && !payload.password) {
       delete payload.password;
     }
@@ -225,10 +248,18 @@ function UserManagement() {
         if (response.status === 400) {
           if (result.error && result.error.includes("username")) {
             showSwalError("โปรดเปลี่ยนชื่อผู้ใช้งาน", "ชื่อผู้ใช้งานซ้ำ");
+          } else if (
+            result.error &&
+            result.error.toLowerCase().includes("room")
+          ) {
+            showSwalError(
+              "ข้อมูลห้องไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
+              "ห้องไม่ถูกต้อง"
+            );
           } else {
             showSwalError(
               result.error || "ไม่สามารถบันทึกข้อมูลได้",
-              "ข้อผิดพลาด [400]"
+              "ข้อผิดพลาด"
             );
           }
         } else if (response.status === 404) {
@@ -263,13 +294,11 @@ function UserManagement() {
     }
   };
 
-  // ==============================
-  // 8) ลบผู้ใช้
-  // ==============================
+  // ลบผู้ใช้
   const handleDeleteUser = async (userId) => {
     Swal.fire({
       title: "โปรดยืนยัน",
-      text: `ผู้ใช้งาน ${userId} จะถูกลบถาวรและไม่สามารถกู้คืนได้`,
+      text: `ผู้ใช้งานจะถูกลบถาวรและไม่สามารถกู้คืนได้`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -281,16 +310,14 @@ function UserManagement() {
       },
     }).then(async (result) => {
       if (!result.isConfirmed) return;
-
       try {
         const response = await fetch(
-          `http://localhost:4000/api/users/${userId}`,
+          `https://api.horplus.work/api/users/${userId}`,
           {
             method: "DELETE",
           }
         );
         const data = await response.json();
-
         if (!response.ok) {
           switch (response.status) {
             case 404:
@@ -314,7 +341,6 @@ function UserManagement() {
           }
           return;
         }
-
         showSwalSuccess(
           data.message || "ข้อมูลผู้ใช้งานถูกลบเรียบร้อยแล้ว",
           "การลบข้อมูลสำเร็จ"
@@ -328,98 +354,169 @@ function UserManagement() {
     });
   };
 
-  // ==============================
-  // ส่วนแสดงผล (JSX)
-  // ==============================
   return (
     <>
-      {/* Main Content */}
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={2}
-        >
-          <Button
-            variant="contained"
-            startIcon={<ArrowBackIcon />}
-            sx={{
-              background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              "&:hover": {
-                background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              },
-            }}
-            onClick={() => navigate(-1)}
-          >
-            กลับสู่หน้าหลัก
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{
-              background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              "&:hover": {
-                background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              },
-            }}
-            onClick={() => handleOpenDialog()}
-          >
-            เพิ่มข้อมูลผู้ใช้งาน
-          </Button>
-        </Box>
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "100vh",
+          background: "linear-gradient(to bottom, #E07B39 40%, #DCE4C9 10%)",
+        }}
+      >
+        <CssBaseline />
 
-        {/* ตารางแสดงผู้ใช้ */}
-        <TableContainer
-          component={Paper}
-          elevation={6}
-          sx={{ borderRadius: 2, overflowX: "auto" }}
+        {/* AppBar */}
+        <AppBar
+          position="fixed"
+          sx={{
+            backgroundColor: "#E07B39",
+            boxShadow: "0px 4px 15px #B6A28E",
+          }}
         >
-          {loading ? (
-            <CircularProgress sx={{ display: "block", margin: "20px auto" }} />
-          ) : (
-            <Table>
-              <TableHead
+          <Toolbar sx={{ minHeight: { xs: 56, sm: 64, md: 64 } }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={() => setDrawerOpen(true)}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              variant="h3"
+              noWrap
+              sx={{
+                flexGrow: 1,
+                textAlign: "center",
+                fontSize: { xs: "2rem", sm: "2.5rem", md: "2.5rem" },
+                fontWeight: "bold",
+              }}
+            >
+              ระบบจัดการผู้ใช้
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        {/* Drawer (Sidebar) */}
+        <Drawer
+          variant="temporary"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: 240,
+              backgroundColor: "#454545",
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
+        {/* Main Content */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            pt: 20,
+            p: { xs: 1, sm: 2 },
+            pb: 5,
+          }}
+        >
+          <Toolbar sx={{ minHeight: 120 }} />
+
+          {/* Container สำหรับเนื้อหาหลัก (พื้นหลังสีขาว) */}
+          <Box
+            sx={{
+              backgroundColor: "#fff",
+              borderRadius: 2,
+              boxShadow: "0px 4px 8px rgba(0,0,0,0.1)",
+              pt: 4,
+              mx: "auto",
+              width: { xs: "95%", sm: "90%", md: "1000px" },
+              p: 3,
+              mt: 4,
+            }}
+          >
+            {/* Header: "รายการผู้ใช้" กับปุ่ม "เพิ่มข้อมูลผู้ใช้งาน" */}
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={2}
+            >
+              <Typography
+                variant="h1"
                 sx={{
-                  backgroundColor: "#ff6600",
-                  "& th": {
-                    color: "white",
-                    fontWeight: "bold",
-                    textAlign: "center",
-                  },
+                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  border: "1px solid #E07B39",
+                  borderRadius: 1,
+                  p: "4px 8px",
                 }}
               >
-                <TableRow>
-                  <TableCell>ชื่อผู้ใช้</TableCell>
-                  <TableCell>ชื่อเต็ม</TableCell>
-                  <TableCell>เบอร์โทร</TableCell>
-                  <TableCell>ไลน์ไอดี</TableCell>
-                  <TableCell>ห้องที่พัก</TableCell>
-                  <TableCell>ยศ</TableCell>
-                  <TableCell align="right">จัดการ</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
+                รายการผู้ใช้
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                sx={{
+                  background: "linear-gradient(45deg, #E07B39, #E07B39)",
+                  "&:hover": {
+                    background: "linear-gradient(45deg, #E07B39, #E07B39)",
+                  },
+                }}
+                onClick={() => handleOpenDialog()}
+              >
+                เพิ่มข้อมูลผู้ใช้งาน
+              </Button>
+            </Box>
+
+            {loading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: 80,
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            ) : (
+              // Scrollable Box สำหรับรายการผู้ใช้ (ตั้ง overflowY ให้ auto และ overflowX ให้ auto เพื่อให้เลื่อนในแนวตั้งและแนวนอนได้)
+              <Box
+                sx={{
+                  height: "700px",
+                  overflowY: "auto",
+                  overflowX: "auto",
+                  border: "1px solid #ccc",
+                  borderRadius: 1,
+                  p: 1,
+                }}
+              >
                 {users.map((user) => (
-                  <TableRow
+                  <Paper
                     key={user.user_id}
                     sx={{
-                      "&:hover": { backgroundColor: "#ffe0b2" },
-                      transition: "0.3s",
-                      "& td": { textAlign: "center" },
+                      p: 2,
+                      borderRadius: 1,
+                      backgroundColor: "#F5F5DC",
+                      boxShadow: "0px 2px 5px rgba(0,0,0,0.1)",
+                      mb: 1,
                     }}
                   >
-                    <TableCell>{user.username}</TableCell>
-                    <TableCell>{user.full_name || "-"}</TableCell>
-                    <TableCell>{user.phone_number || "-"}</TableCell>
-                    <TableCell>{user.line_id || "-"}</TableCell>
-                    <TableCell>
-                      {user.room_number
-                        ? `ห้อง ${user.room_number}`
-                        : "ไม่มีห้อง"}
-                    </TableCell>
-                    <TableCell>{user.role || "-"}</TableCell>
-                    <TableCell align="right">
+                    <Typography sx={{ fontWeight: "bold" }}>
+                      User: {user.username}
+                    </Typography>
+                    <Typography>ชื่อเต็ม: {user.full_name || "-"}</Typography>
+                    <Typography>
+                      เบอร์โทร: {user.phone_number || "-"}
+                    </Typography>
+                    <Typography>ห้อง: {user.room_number || "-"}</Typography>
+                    <Typography>สิทธิ์: {user.role || "-"}</Typography>
+
+                    <Box sx={{ textAlign: "right", mt: 1 }}>
                       <Tooltip title="แก้ไขข้อมูล">
                         <IconButton
                           color="primary"
@@ -436,15 +533,15 @@ function UserManagement() {
                           <DeleteIcon />
                         </IconButton>
                       </Tooltip>
-                    </TableCell>
-                  </TableRow>
+                    </Box>
+                  </Paper>
                 ))}
-              </TableBody>
-            </Table>
-          )}
-        </TableContainer>
+              </Box>
+            )}
+          </Box>
+        </Box>
 
-        {/* Dialog: เพิ่ม/แก้ไขข้อมูลผู้ใช้งาน */}
+        {/* Dialog สำหรับเพิ่ม/แก้ไขข้อมูลผู้ใช้งาน */}
         <Dialog
           open={openDialog}
           onClose={handleCloseDialog}
@@ -455,7 +552,7 @@ function UserManagement() {
             sx={{
               textAlign: "center",
               fontWeight: "bold",
-              bgcolor: "#ff6600",
+              bgcolor: "#E07B39",
               color: "white",
               py: 2,
             }}
@@ -542,21 +639,17 @@ function UserManagement() {
             </FormControl>
           </DialogContent>
           <DialogActions
-            sx={{
-              justifyContent: "center",
-              p: 2,
-              backgroundColor: "#fff",
-            }}
+            sx={{ justifyContent: "center", p: 2, backgroundColor: "#fff" }}
           >
             <Button
               onClick={handleCloseDialog}
               variant="outlined"
               sx={{
-                borderColor: "#ff6600",
-                color: "#ff6600",
+                borderColor: "#E07B39",
+                color: "#E07B39",
                 textTransform: "none",
                 mr: 2,
-                "&:hover": { borderColor: "#ff6600" },
+                "&:hover": { borderColor: "#E07B39" },
               }}
             >
               ยกเลิก
@@ -565,16 +658,16 @@ function UserManagement() {
               onClick={handleSaveUser}
               variant="contained"
               sx={{
-                backgroundColor: "#ff6600",
+                backgroundColor: "#E07B39",
                 textTransform: "none",
-                "&:hover": { backgroundColor: "#e65c00" },
+                "&:hover": { backgroundColor: "#E07B39" },
               }}
             >
               บันทึก
             </Button>
           </DialogActions>
         </Dialog>
-      </Container>
+      </Box>
     </>
   );
 }

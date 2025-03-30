@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+/* eslint-disable */
+import React, { useState, forwardRef } from "react";
 import {
   Box,
   Typography,
@@ -9,12 +10,17 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Slide,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
 import logo from "../Pictures/logohorplus.png";
+
+// สร้าง Transition สำหรับ Dialog ให้สไลด์ขึ้น
+const Transition = forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 function WelcomePage() {
   const navigate = useNavigate();
@@ -29,6 +35,22 @@ function WelcomePage() {
   const [openAdminSecret, setOpenAdminSecret] = useState(false);
   const [secretCode, setSecretCode] = useState("");
 
+  // ===== State สำหรับการแจ้งเตือน (Snackbar) =====
+  const [notif, setNotif] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const handleCloseNotification = (event, reason) => {
+    if (reason === "clickaway") return;
+    setNotif({ ...notif, open: false });
+  };
+
+  const showNotification = (message, severity = "success") => {
+    setNotif({ open: true, message, severity });
+  };
+
   // รหัสลับที่กำหนด (ตัวอย่าง)
   const ADMIN_SECRET_CODE = "MYADMIN123";
 
@@ -40,16 +62,13 @@ function WelcomePage() {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      toast.error("กรุณากรอกชื่อผู้ใช้และรหัสผ่าน", {
-        position: "top-center",
-        autoClose: 1000,
-      });
+      showNotification("กรุณากรอกชื่อผู้ใช้และรหัสผ่าน", "error");
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:4000/api/login-admin", {
+      const response = await fetch("https://api.horplus.work/api/login-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -59,23 +78,20 @@ function WelcomePage() {
       setLoading(false);
 
       if (response.ok) {
-        toast.success("เข้าสู่ระบบสำเร็จ", {
-          position: "top-center",
-          autoClose: 1000,
-        });
+        showNotification("เข้าสู่ระบบสำเร็จ", "success");
         setTimeout(() => navigate("/home"), 1000);
       } else {
-        toast.error(result.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", {
-          position: "top-center",
-          autoClose: 1000,
-        });
+        showNotification(
+          result.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+          "error"
+        );
       }
     } catch (err) {
       console.error("Error:", err);
-      toast.error("เกิดปัญหาในการเชื่อมต่อกับเซิร์ฟเวอร์ กรุณาลองอีกครั้ง", {
-        position: "top-center",
-        autoClose: 1000,
-      });
+      showNotification(
+        "เกิดปัญหาในการเชื่อมต่อกับเซิร์ฟเวอร์ กรุณาลองอีกครั้ง",
+        "error"
+      );
       setLoading(false);
     }
   };
@@ -88,30 +104,18 @@ function WelcomePage() {
 
   const handleCheckSecretCode = () => {
     if (!secretCode) {
-      toast.error("กรุณากรอกรหัสลับ", {
-        position: "top-center",
-        autoClose: 1000,
-      });
+      showNotification("กรุณากรอกรหัสลับ", "error");
       return;
     }
 
     if (secretCode.trim() === ADMIN_SECRET_CODE) {
-      toast.success("รหัสลับถูกต้อง! ดำเนินการต่อได้", {
-        position: "top-center",
-        autoClose: 1000,
-      });
-      // ตัวอย่าง: ย้ายไปหน้าสำหรับสมัคร Admin ใหม่
-      // หรือจะเปิดฟอร์มสมัครต่อใน Dialog เดียวกันก็ได้
+      showNotification("รหัสลับถูกต้อง! ดำเนินการต่อได้", "success");
       setTimeout(() => {
         setOpenAdminSecret(false);
         navigate("/user");
-        // หรือ navigate("/register-admin") ก็ได้ ตามโครงสร้างโปรเจ็กต์
       }, 1200);
     } else {
-      toast.error("รหัสลับไม่ถูกต้อง!", {
-        position: "top-center",
-        autoClose: 1000,
-      });
+      showNotification("รหัสลับไม่ถูกต้อง!", "error");
     }
   };
 
@@ -125,14 +129,28 @@ function WelcomePage() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "linear-gradient(to bottom, #e0e0e0, #ff7043)",
+        background: "linear-gradient(to bottom, #E07B39, #DCE4C9)",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      <ToastContainer />
+      {/* Popup แจ้งเตือน */}
+      <Snackbar
+        open={notif.open}
+        autoHideDuration={1500}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notif.severity}
+          sx={{ width: "100%" }}
+        >
+          {notif.message}
+        </Alert>
+      </Snackbar>
 
-      {/* ภาพพื้นหลัง */}
+      {/* ภาพพื้นหลัง (ตัวอย่าง) */}
       <Box
         sx={{
           position: "absolute",
@@ -151,11 +169,13 @@ function WelcomePage() {
       <Container
         maxWidth="xs"
         sx={{
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
+          width: "100%",
+          maxWidth: { xs: 350, sm: 400 },
+          backgroundColor: "#F5F5DC",
           borderRadius: "15px",
           boxShadow: "0 10px 20px rgba(0, 0, 0, 0.3)",
           textAlign: "center",
-          padding: { xs: "15px 20px", sm: "20px 40px" },
+          padding: { xs: "20px", sm: "30px 40px" },
           backdropFilter: "blur(8px)",
         }}
       >
@@ -172,11 +192,11 @@ function WelcomePage() {
         <Typography
           variant="h3"
           sx={{
-            color: "#ff5722",
+            color: "#454545",
             fontWeight: "bold",
             letterSpacing: "2px",
             marginBottom: "10px",
-            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem", lg: "3rem" },
+            fontSize: { xs: "1.8rem", sm: "2rem", md: "2.5rem", lg: "3rem" },
           }}
         >
           HORPLUS
@@ -186,12 +206,15 @@ function WelcomePage() {
           variant="contained"
           onClick={handleOpenLogin}
           sx={{
-            backgroundColor: "#ff5722",
+            backgroundColor: "#E07B39",
             color: "#fff",
             fontWeight: "bold",
             mt: 2,
             mb: 1,
             width: "100%",
+            "&:hover": {
+              backgroundColor: "#E07B39",
+            },
           }}
         >
           เข้าสู่ระบบ
@@ -202,10 +225,14 @@ function WelcomePage() {
           variant="outlined"
           onClick={handleOpenAdminSecret}
           sx={{
-            color: "#ff5722",
-            borderColor: "#ff5722",
+            color: "#454545",
+            borderColor: "#454545",
             fontWeight: "bold",
             width: "100%",
+            "&:hover": {
+              borderColor: "#454545",
+              color: "#454545",
+            },
           }}
         >
           เพิ่มผู้ใช้ Admin
@@ -213,8 +240,32 @@ function WelcomePage() {
       </Container>
 
       {/* Dialog ล็อกอิน */}
-      <Dialog open={openLogin} onClose={handleCloseLogin}>
-        <DialogTitle>เข้าสู่ระบบ</DialogTitle>
+      <Dialog
+        open={openLogin}
+        onClose={handleCloseLogin}
+        TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            px: 2,
+            pt: 1,
+            pb: 2,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            backgroundColor: "#E07B39",
+            color: "#fff",
+            fontWeight: "bold",
+            textAlign: "center",
+            mb: 1,
+            borderTopLeftRadius: "12px",
+            borderTopRightRadius: "12px",
+          }}
+        >
+          เข้าสู่ระบบ
+        </DialogTitle>
         <DialogContent>
           <TextField
             margin="normal"
@@ -236,19 +287,55 @@ function WelcomePage() {
             disabled={loading}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ justifyContent: "center" }}>
           <Button onClick={handleCloseLogin} disabled={loading}>
             ยกเลิก
           </Button>
-          <Button onClick={handleLogin} variant="contained" disabled={loading}>
+          <Button
+            onClick={handleLogin}
+            variant="contained"
+            disabled={loading}
+            sx={{
+              backgroundColor: "#E07B39",
+              color: "#fff",
+              fontWeight: "bold",
+              "&:hover": {
+                backgroundColor: "#E07B39",
+              },
+            }}
+          >
             {loading ? "กำลังโหลด..." : "เข้าสู่ระบบ"}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Dialog ใส่ Secret Code สำหรับเพิ่ม Admin */}
-      <Dialog open={openAdminSecret} onClose={handleCloseAdminSecret}>
-        <DialogTitle>เพิ่ม Admin</DialogTitle>
+      <Dialog
+        open={openAdminSecret}
+        onClose={handleCloseAdminSecret}
+        TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            px: 2,
+            pt: 1,
+            pb: 2,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            backgroundColor: "#E07B39",
+            color: "#fff",
+            fontWeight: "bold",
+            textAlign: "center",
+            mb: 1,
+            borderTopLeftRadius: "12px",
+            borderTopRightRadius: "12px",
+          }}
+        >
+          เพิ่ม Admin
+        </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -261,9 +348,20 @@ function WelcomePage() {
             onChange={(e) => setSecretCode(e.target.value)}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ justifyContent: "center" }}>
           <Button onClick={handleCloseAdminSecret}>ยกเลิก</Button>
-          <Button variant="contained" onClick={handleCheckSecretCode}>
+          <Button
+            variant="contained"
+            onClick={handleCheckSecretCode}
+            sx={{
+              backgroundColor: "#E07B39",
+              color: "#fff",
+              fontWeight: "bold",
+              "&:hover": {
+                backgroundColor: "#E07B39",
+              },
+            }}
+          >
             ตกลง
           </Button>
         </DialogActions>

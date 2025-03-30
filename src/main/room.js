@@ -1,79 +1,146 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Typography,
+  AppBar,
+  Box,
   Button,
-  TextField,
-  Paper,
-  Container,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  CircularProgress,
+  CssBaseline,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  CircularProgress,
-  Box,
-  AppBar,
-  Toolbar,
-  IconButton,
-  Tooltip,
+  Drawer,
   FormControl,
-  Select,
-  MenuItem,
+  IconButton,
   InputLabel,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  MenuItem,
+  Paper,
+  Select,
+  TextField,
+  Toolbar,
+  Tooltip,
+  Typography,
+  Divider,
 } from "@mui/material";
 import Swal from "sweetalert2";
-import AddIcon from "@mui/icons-material/Add";
-import MenuIcon from "@mui/icons-material/Menu";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import MenuIcon from "@mui/icons-material/Menu";
+import HomeIcon from "@mui/icons-material/Home";
+import PeopleIcon from "@mui/icons-material/People";
+import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
+import BuildIcon from "@mui/icons-material/Build";
+import CampaignIcon from "@mui/icons-material/Campaign";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useNavigate } from "react-router-dom";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 function Rooms() {
+  const navigate = useNavigate();
+
+  // 1) State สำหรับแสดงผล
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // 2) State สำหรับ Dialog + ฟอร์ม
   const [openDialog, setOpenDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    room_id: "",
+    room_id: null,
     room_number: "",
     rent: "",
     description: "",
     status: "available",
   });
 
-  const navigate = useNavigate();
+  // 3) State สำหรับ Sidebar
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // ฟังก์ชันปิด Dialog
-  const handleCloseDialog = () => setOpenDialog(false);
+  // เมนูสำหรับ Sidebar
+  const menuItems = [
+    { text: "Home", link: "/home", icon: <HomeIcon /> },
+    { text: "ผู้ใช้", link: "/user", icon: <PeopleIcon /> },
+    { text: "ห้อง", link: "/rooms", icon: <MeetingRoomIcon /> },
+    { text: "แจ้งซ่อม", link: "/repair", icon: <BuildIcon /> },
+    { text: "ประกาศ", link: "/announcements", icon: <CampaignIcon /> },
+    { text: "บิล", link: "/admin/bills", icon: <ReceiptLongIcon /> },
+  ];
 
-  // ใช้ useCallback เพื่อห่อหุ้ม fetchRooms
+  const drawer = (
+    <Box
+      onClick={() => setDrawerOpen(false)}
+      sx={{ textAlign: "center", color: "#fff" }}
+    >
+      <Typography variant="h4" sx={{ my: 2 }}>
+        Dashboard
+      </Typography>
+      <Divider sx={{ backgroundColor: "hsla(0, 0%, 100%, 0.3)" }} />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton href={item.link}>
+              <ListItemIcon sx={{ color: "#fff" }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+
+  // 4) ฟังก์ชันดึงข้อมูลห้อง
   const fetchRooms = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:4000/api/rooms");
+      const response = await fetch("https://api.horplus.work/api/rooms");
       if (!response.ok) throw new Error("Fetch Error");
       const data = await response.json();
+      // เรียงลำดับห้องตามหมายเลขห้อง
       setRooms(data.sort((a, b) => a.room_number - b.room_number));
     } catch (error) {
-      handleCloseDialog(); // ปิด popup ก่อนแสดง alert
-      Swal.fire({ icon: "error", title: "ไม่สามารถโหลดข้อมูลห้องได้" });
+      Swal.fire({
+        icon: "error",
+        title: "เกิดข้อผิดพลาด",
+        text: "ไม่สามารถดึงข้อมูลห้องได้",
+      });
     } finally {
       setLoading(false);
     }
-  }, []); // ขึ้นอยู่กับสิ่งที่ fetchRooms ใช้งาน (ในที่นี้ไม่มี dependency)
+  }, []);
 
-  // เรียก fetchRooms เมื่อ Component mount
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
 
-  // ฟังก์ชันเปิด Dialog สำหรับเพิ่ม/แก้ไขห้อง
+  // 5) ฟังก์ชันแจ้งเตือน (Swal)
+  const showSwalError = (text, title = "เกิดข้อผิดพลาด") => {
+    Swal.fire({
+      icon: "error",
+      title,
+      text,
+      didOpen: (popup) => {
+        popup.parentNode.style.zIndex = 99999;
+      },
+    });
+  };
+
+  const showSwalSuccess = (text, title = "สำเร็จ") => {
+    return Swal.fire({
+      icon: "success",
+      title,
+      text,
+      didOpen: (popup) => {
+        popup.parentNode.style.zIndex = 99999;
+      },
+    });
+  };
+
+  // 6) เปิด/ปิด Dialog + ฟอร์ม
   const handleOpenDialog = (room = null) => {
     if (room) {
       setFormData({
@@ -86,7 +153,7 @@ function Rooms() {
       setIsEditing(true);
     } else {
       setFormData({
-        room_id: "",
+        room_id: null,
         room_number: "",
         rent: "",
         description: "",
@@ -97,159 +164,287 @@ function Rooms() {
     setOpenDialog(true);
   };
 
-  // ฟังก์ชันสำหรับบันทึกข้อมูลห้อง (เพิ่ม/แก้ไข)
+  const handleCloseDialog = () => setOpenDialog(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // 7) บันทึกห้อง (Create/Update)
   const handleSaveRoom = async () => {
     if (!formData.room_number || !formData.rent) {
-      handleCloseDialog();
-      return Swal.fire({
-        icon: "error",
-        title: "กรุณากรอกหมายเลขห้องและค่าเช่า",
-      });
+      showSwalError("กรุณากรอกหมายเลขห้องและราคาเช่า");
+      return;
     }
-    try {
-      const url = isEditing
-        ? `http://localhost:4000/api/rooms/${formData.room_id}`
-        : "http://localhost:4000/api/rooms";
-      const payload = {
-        room_number: parseInt(formData.room_number, 10),
-        rent: parseInt(formData.rent, 10),
-        description: formData.description || "",
-        status: formData.status,
-      };
 
+    const url = isEditing
+      ? `https://api.horplus.work/api/rooms/${formData.room_id}`
+      : "https://api.horplus.work/api/rooms";
+    const method = isEditing ? "PUT" : "POST";
+    const payload = {
+      room_number: parseInt(formData.room_number, 10),
+      rent: parseInt(formData.rent, 10),
+      description: formData.description || "",
+      status: formData.status,
+    };
+
+    try {
       const response = await fetch(url, {
-        method: isEditing ? "PUT" : "POST",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const result = await response.json();
+
       if (!response.ok) {
-        handleCloseDialog();
-        throw new Error(result.error || "เกิดข้อผิดพลาด");
+        if (response.status === 400) {
+          showSwalError(
+            result.error || "ไม่สามารถบันทึกข้อมูลได้",
+            "ข้อผิดพลาด [400]"
+          );
+        } else if (response.status === 404) {
+          showSwalError(
+            result.error || "ไม่พบข้อมูลที่ต้องการแก้ไข",
+            "ไม่พบข้อมูล [404]"
+          );
+        } else if (response.status === 500) {
+          showSwalError(
+            result.error || "เซิร์ฟเวอร์มีปัญหา",
+            "เซิร์ฟเวอร์มีปัญหา [500]"
+          );
+        } else {
+          showSwalError(
+            result.error || "ไม่สามารถบันทึกข้อมูลได้",
+            `Error [${response.status}]`
+          );
+        }
+        return;
       }
-      handleCloseDialog();
-      Swal.fire({
-        icon: "success",
-        title: isEditing ? "แก้ไขสำเร็จ" : "เพิ่มห้องสำเร็จ",
+
+      showSwalSuccess(
+        result.message ||
+          (isEditing ? "แก้ไขข้อมูลห้องสำเร็จ" : "เพิ่มห้องสำเร็จ")
+      ).then(() => {
+        setOpenDialog(false);
+        fetchRooms();
       });
-      fetchRooms();
     } catch (error) {
-      handleCloseDialog();
-      Swal.fire({ icon: "error", title: error.message || "เกิดข้อผิดพลาด" });
+      console.error("Fetch error:", error);
+      showSwalError("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
     }
   };
 
-  // ฟังก์ชันสำหรับลบห้อง
-  const handleDeleteRoom = async (room_id) => {
-    try {
-      handleCloseDialog();
-      const confirmResult = await Swal.fire({
-        icon: "warning",
-        title: "คุณแน่ใจหรือไม่?",
-        text: "จะลบห้องนี้ออกจากระบบ",
-        showCancelButton: true,
-        confirmButtonText: "ใช่, ลบเลย",
-      });
-      if (confirmResult.isConfirmed) {
+  // 8) ลบห้อง
+  const handleDeleteRoom = async (roomId) => {
+    Swal.fire({
+      title: "โปรดยืนยัน",
+      text: `ห้องหมายเลข ${roomId} จะถูกลบถาวรและไม่สามารถกู้คืนได้`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "ยืนยันการลบ",
+      cancelButtonText: "ยกเลิก",
+      didOpen: (popup) => {
+        popup.parentNode.style.zIndex = 99999;
+      },
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
         const response = await fetch(
-          `http://localhost:4000/api/rooms/${room_id}`,
+          `https://api.horplus.work/api/rooms/${roomId}`,
           {
             method: "DELETE",
           }
         );
-        const result = await response.json();
+        const data = await response.json();
         if (!response.ok) {
-          throw new Error(result.error || "เกิดข้อผิดพลาด");
+          showSwalError(
+            data.error || "ไม่สามารถลบห้องได้",
+            `Error [${response.status}]`
+          );
+          return;
         }
-        Swal.fire({ icon: "success", title: "ลบห้องสำเร็จ" });
-        fetchRooms();
+        showSwalSuccess(
+          data.message || "ลบห้องสำเร็จ",
+          "การลบข้อมูลสำเร็จ"
+        ).then(() => {
+          fetchRooms();
+        });
+      } catch (error) {
+        console.error("Error deleting room:", error);
+        showSwalError("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", "เกิดข้อผิดพลาด");
       }
-    } catch (error) {
-      Swal.fire({ icon: "error", title: error.message || "เกิดข้อผิดพลาด" });
-    }
+    });
   };
 
   return (
-    <Box>
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={2}
-        >
-          <Button
-            variant="contained"
-            startIcon={<ArrowBackIcon />}
-            sx={{
-              background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              "&:hover": {
-                background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              },
-            }}
-            onClick={() => navigate(-1)}
-          >
-            กลับสู่หน้าหลัก
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{
-              background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              "&:hover": {
-                background: "linear-gradient(45deg, #ff6600, #ff6600)",
-              },
-            }}
-            onClick={() => handleOpenDialog()}
-          >
-            เพิ่มห้องผู้พัก
-          </Button>
-        </Box>
+    <>
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "100vh",
+          background: "linear-gradient(to bottom, #E07B39 40%, #DCE4C9 10%)",
+        }}
+      >
+        <CssBaseline />
 
-        <TableContainer
-          component={Paper}
-          elevation={6}
-          sx={{ borderRadius: 2 }}
+        {/* AppBar */}
+        <AppBar
+          position="fixed"
+          sx={{
+            backgroundColor: "#E07B39",
+            boxShadow: "0px 4px 15px #B6A28E",
+          }}
         >
-          {loading ? (
-            <CircularProgress sx={{ display: "block", margin: "20px auto" }} />
-          ) : (
-            <Table>
-              <TableHead
+          <Toolbar sx={{ minHeight: { xs: 56, sm: 64, md: 64 } }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={() => setDrawerOpen(true)}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              variant="h3"
+              noWrap
+              sx={{
+                flexGrow: 1,
+                textAlign: "center",
+                fontSize: { xs: "2rem", sm: "2.5rem", md: "2.5rem" },
+                fontWeight: "bold",
+              }}
+            >
+              ระบบจัดการห้องพัก
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        {/* Drawer (Sidebar) */}
+        <Drawer
+          variant="temporary"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: 240,
+              backgroundColor: "#454545",
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
+        {/* Main Content ScrollBox */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            pt: 20,
+            p: { xs: 1, sm: 2 },
+            pb: 5,
+            // ทำให้ส่วน Main Content เลื่อนในแนวตั้งได้ หากมีข้อมูลเยอะ
+            overflowY: "auto",
+          }}
+        >
+          {/* Spacer เพื่อไม่ให้เนื้อหาถูก AppBar ทับ */}
+          <Toolbar sx={{ minHeight: 120 }} />
+
+          {/* Container สำหรับเนื้อหาหลัก (พื้นหลังสีขาว) */}
+          <Box
+            sx={{
+              backgroundColor: "#fff",
+              borderRadius: 2,
+              boxShadow: "0px 4px 8px rgba(0,0,0,0.1)",
+              pt: 4,
+              mx: "auto",
+              width: { xs: "95%", sm: "90%", md: "1000px" },
+              p: 3,
+              mt: 4,
+            }}
+          >
+            {/* Header: "รายการห้องพัก" กับปุ่ม "เพิ่มห้องพัก" */}
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={2}
+            >
+              <Typography
+                variant="h1"
                 sx={{
-                  backgroundColor: "#ff6600",
-                  "& th": {
-                    color: "white",
-                    fontWeight: "bold",
-                    textAlign: "center",
-                  },
+                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  border: "1px solid #E07B39",
+                  borderRadius: 1,
+                  p: "4px 8px",
                 }}
               >
-                <TableRow>
-                  <TableCell sx={{ textAlign: "center" }}>
-                    หมายเลขห้อง
-                  </TableCell>
-                  <TableCell sx={{ textAlign: "center" }}>
-                    ราคาเช่า (บาท)
-                  </TableCell>
-                  <TableCell sx={{ textAlign: "center" }}>สถานะ</TableCell>
-                  <TableCell sx={{ textAlign: "center" }}>การกระทำ</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
+                รายการห้องพัก
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                sx={{
+                  background: "linear-gradient(45deg, #E07B39, #E07B39)",
+                  "&:hover": {
+                    background: "linear-gradient(45deg, #E07B39, #E07B39)",
+                  },
+                }}
+                onClick={() => handleOpenDialog()}
+              >
+                เพิ่มห้องพัก
+              </Button>
+            </Box>
+
+            {loading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: 80,
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            ) : (
+              // Scrollable Box สำหรับรายการห้องพัก
+              <Box
+                sx={{
+                  maxHeight: "700px",
+                  overflowY: "auto",
+                  overflowX: "auto",
+                  border: "1px solid #ccc",
+                  borderRadius: 1,
+                  p: 1,
+                }}
+              >
                 {rooms.map((room) => (
-                  <TableRow key={room.room_id}>
-                    <TableCell sx={{ textAlign: "center" }}>
-                      {room.room_number}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: "center" }}>
-                      {room.rent}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: "center" }}>
-                      {room.status === "available" ? "ห้องว่าง" : "มีคนเช่า"}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: "center" }}>
-                      <Tooltip title="แก้ไข">
+                  <Paper
+                    key={room.room_id}
+                    sx={{
+                      p: 2,
+                      borderRadius: 1,
+                      backgroundColor: "#F5F5DC",
+                      boxShadow: "0px 2px 5px rgba(0,0,0,0.1)",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: "bold" }}>
+                      ห้อง: {room.room_number}
+                    </Typography>
+                    <Typography>ราคาเช่า: {room.rent} บาท</Typography>
+                    <Typography>
+                      สถานะ:{" "}
+                      {room.status === "available" ? "ห้องว่าง" : "มีผู้เช่า"}
+                    </Typography>
+                    <Typography>คำอธิบาย: {room.description || "-"}</Typography>
+                    <Box sx={{ textAlign: "right", mt: 1 }}>
+                      <Tooltip title="แก้ไขข้อมูล">
                         <IconButton
                           color="primary"
                           onClick={() => handleOpenDialog(room)}
@@ -257,7 +452,7 @@ function Rooms() {
                           <EditIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="ลบ">
+                      <Tooltip title="ลบห้อง">
                         <IconButton
                           color="error"
                           onClick={() => handleDeleteRoom(room.room_id)}
@@ -265,14 +460,15 @@ function Rooms() {
                           <DeleteIcon />
                         </IconButton>
                       </Tooltip>
-                    </TableCell>
-                  </TableRow>
+                    </Box>
+                  </Paper>
                 ))}
-              </TableBody>
-            </Table>
-          )}
-        </TableContainer>
+              </Box>
+            )}
+          </Box>
+        </Box>
 
+        {/* Dialog สำหรับเพิ่ม/แก้ไขข้อมูลห้อง */}
         <Dialog
           open={openDialog}
           onClose={handleCloseDialog}
@@ -283,12 +479,12 @@ function Rooms() {
             sx={{
               textAlign: "center",
               fontWeight: "bold",
-              bgcolor: "#ff6600",
+              bgcolor: "#E07B39",
               color: "white",
               py: 2,
             }}
           >
-            {isEditing ? "แก้ไขข้อมูลห้อง" : "เพิ่มห้องใหม่"}
+            {isEditing ? "แก้ไขข้อมูลห้อง" : "เพิ่มข้อมูลห้อง"}
           </DialogTitle>
           <DialogContent sx={{ backgroundColor: "#fff", p: 3 }}>
             <TextField
@@ -297,13 +493,7 @@ function Rooms() {
               fullWidth
               margin="normal"
               value={formData.room_number}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  room_number: e.target.value,
-                }))
-              }
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+              onChange={handleChange}
             />
             <TextField
               label="ราคาเช่า (บาท)"
@@ -311,12 +501,8 @@ function Rooms() {
               fullWidth
               margin="normal"
               value={formData.rent}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, rent: e.target.value }))
-              }
+              onChange={handleChange}
               type="number"
-              inputProps={{ step: 1, max: 9999 }}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
             />
             <TextField
               label="คำอธิบาย"
@@ -324,44 +510,34 @@ function Rooms() {
               fullWidth
               margin="normal"
               value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+              onChange={handleChange}
             />
             <FormControl fullWidth margin="normal">
-              <InputLabel>สถานะ</InputLabel>
+              <InputLabel id="status-label">สถานะ</InputLabel>
               <Select
+                labelId="status-label"
+                label="สถานะ"
                 name="status"
                 value={formData.status}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, status: e.target.value }))
-                }
-                label="สถานะ"
+                onChange={handleChange}
               >
                 <MenuItem value="available">ห้องว่าง</MenuItem>
-                <MenuItem value="occupied">มีคนเช่า</MenuItem>
+                <MenuItem value="occupied">มีผู้เช่า</MenuItem>
               </Select>
             </FormControl>
           </DialogContent>
           <DialogActions
-            sx={{
-              justifyContent: "space-between",
-              backgroundColor: "#fff",
-              p: 2,
-            }}
+            sx={{ justifyContent: "center", p: 2, backgroundColor: "#fff" }}
           >
             <Button
               onClick={handleCloseDialog}
               variant="outlined"
               sx={{
-                borderColor: "#ff6600",
-                color: "#ff6600",
+                borderColor: "#E07B39",
+                color: "#E07B39",
                 textTransform: "none",
-                "&:hover": { borderColor: "#ff6600" },
+                mr: 2,
+                "&:hover": { borderColor: "#E07B39" },
               }}
             >
               ยกเลิก
@@ -370,17 +546,17 @@ function Rooms() {
               onClick={handleSaveRoom}
               variant="contained"
               sx={{
-                backgroundColor: "#ff6600",
+                backgroundColor: "#E07B39",
                 textTransform: "none",
-                "&:hover": { backgroundColor: "#e65c00" },
+                "&:hover": { backgroundColor: "#E07B39" },
               }}
             >
               บันทึก
             </Button>
           </DialogActions>
         </Dialog>
-      </Container>
-    </Box>
+      </Box>
+    </>
   );
 }
 

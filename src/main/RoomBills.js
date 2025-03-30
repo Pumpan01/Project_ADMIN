@@ -1,31 +1,26 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Container,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Paper,
-  CircularProgress,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Tooltip,
-  Typography,
+  AppBar,
   Box,
+  Button,
+  CircularProgress,
+  CssBaseline,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
+  IconButton,
   List,
   ListItem,
   ListItemText,
-  AppBar,
+  ListItemButton,
+  Paper,
+  TextField,
   Toolbar,
-  Grid,
-  TableContainer,
-  Button,
+  Tooltip,
+  Typography,
+  Divider,
 } from "@mui/material";
 
 import MenuIcon from "@mui/icons-material/Menu";
@@ -46,9 +41,6 @@ function RoomBills() {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Sidebar (หากต้องการใช้งาน)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   // Dialog สำหรับเพิ่ม/แก้ไขบิล
   const [billDialogOpen, setBillDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,12 +49,48 @@ function RoomBills() {
     electricity_units: "",
     due_date: "",
     slip_path: "",
-    meter: null, // ไฟล์ภาพ หรือ URL
+    meter: null,
   });
 
   // Dialog สำหรับดูตัวอย่างรูป (Preview)
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
+
+  // Drawer (Sidebar)
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // =============================
+  // เมนูสำหรับ Sidebar
+  // =============================
+  const menuItems = [
+    { text: "Home", link: "/home" },
+    { text: "ผู้ใช้", link: "/user" },
+    { text: "ห้อง", link: "/rooms" },
+    { text: "แจ้งซ่อม", link: "/repair" },
+    { text: "ประกาศ", link: "/announcements" },
+    { text: "บิล", link: "/admin/bills" },
+  ];
+
+  const drawer = (
+    <Box
+      onClick={() => setDrawerOpen(false)}
+      sx={{ textAlign: "center", color: "#fff" }}
+    >
+      <Typography variant="h4" sx={{ my: 2 }}>
+        Dashboard
+      </Typography>
+      <Divider sx={{ backgroundColor: "hsla(0, 0%, 100%, 0.3)" }} />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton href={item.link}>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
 
   // =============================
   // ฟังก์ชันแปลงวันที่ให้เป็นรูปแบบไทย
@@ -84,25 +112,29 @@ function RoomBills() {
     setLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:4000/api/bills/room-admin/${roomId}`
+        `https://api.horplus.work/api/bills/room-admin/${roomId}`
       );
       if (!response.ok) {
+        // แสดงแจ้งเตือนว่าไม่มีบิล
         Swal.fire({
           title: "ไม่มีบิล",
           text: "ยังไม่มีบิลสำหรับห้องนี้",
           icon: "info",
           confirmButtonText: "ตกลง",
           timer: 2000,
+          zIndex: 9999999,
         });
         return;
       }
       const data = await response.json();
       setBills(data);
     } catch (error) {
+      // แสดงแจ้งเตือนกรณีเกิดข้อผิดพลาด
       Swal.fire({
         title: "เกิดข้อผิดพลาด",
         text: error.message,
         icon: "error",
+        zIndex: 9999999,
       });
     } finally {
       setLoading(false);
@@ -114,7 +146,7 @@ function RoomBills() {
   }, [fetchBills]);
 
   // =============================
-  // ฟังก์ชันสำหรับดูตัวอย่างรูปภาพ
+  // ฟังก์ชันสำหรับเปิด/ปิด Dialog ดูรูป (Preview)
   // =============================
   const handlePreviewOpen = (imageUrl) => {
     setPreviewImage(imageUrl);
@@ -176,21 +208,29 @@ function RoomBills() {
         const formData = new FormData();
         formData.append("image", currentBill.meter);
 
-        const uploadResponse = await fetch("http://localhost:4000/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+        const uploadResponse = await fetch(
+          "https://api.horplus.work/api/upload",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
-        if (!uploadResponse.ok)
+        if (!uploadResponse.ok) {
           throw new Error("การอัปโหลดภาพมิตเตอร์ไม่สำเร็จ");
+        }
 
         const uploadData = await uploadResponse.json();
         currentBill.meter = uploadData.file.path;
       }
 
+      // ปิด Dialog ก่อน เพื่อให้ SweetAlert2 ไม่ถูก Dialog บัง
+      handleCloseBillDialog();
+
       if (isEditing) {
+        // แก้ไขข้อมูลบิล
         const response = await fetch(
-          `http://localhost:4000/api/bills/${currentBill.bill_id}`,
+          `https://api.horplus.work/api/bills/${currentBill.bill_id}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -198,49 +238,47 @@ function RoomBills() {
           }
         );
         if (!response.ok) throw new Error("โปรดกรอกข้อมูลให้ครบถ้วน");
+        // แสดง SweetAlert2
         Swal.fire({
           icon: "success",
-          title: "การแก้ไขบิลเสร็จสมบูรณ์",
+          title: "แก้ไขบิลสำเร็จ",
           text: "บิลได้รับการอัปเดตเรียบร้อยแล้ว",
           timer: 2000,
           showConfirmButton: false,
-          didOpen: (popup) => {
-            popup.parentNode.style.zIndex = 99999;
-          },
+          zIndex: 9999999,
         });
       } else {
+        // เพิ่มบิลใหม่
         const newBill = {
           user_id: userId,
           room_number: roomId,
           ...currentBill,
         };
-        const response = await fetch("http://localhost:4000/api/bills", {
+        const response = await fetch("https://api.horplus.work/api/bills", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newBill),
         });
         if (!response.ok) throw new Error("ไม่สามารถเพิ่มบิลได้");
+        // แสดง SweetAlert2
         Swal.fire({
           icon: "success",
           title: "การเพิ่มข้อมูลบิลเสร็จสมบูรณ์",
           text: "บิลใหม่ถูกเพิ่มเรียบร้อยแล้ว",
           timer: 2000,
           showConfirmButton: false,
-          didOpen: (popup) => {
-            popup.parentNode.style.zIndex = 99999;
-          },
+          zIndex: 9999999,
         });
       }
-      handleCloseBillDialog();
+
+      // อัปเดตข้อมูลบิล
       fetchBills();
     } catch (error) {
       Swal.fire({
         icon: "error",
         title: "เกิดข้อผิดพลาด",
         text: error.message,
-        didOpen: (popup) => {
-          popup.parentNode.style.zIndex = 99999;
-        },
+        zIndex: 9999999,
       });
     }
   };
@@ -258,15 +296,13 @@ function RoomBills() {
       cancelButtonColor: "#3085d6",
       confirmButtonText: "โปรดยืนยันการลบ",
       cancelButtonText: "ยกเลิก",
-      didOpen: (popup) => {
-        popup.parentNode.style.zIndex = 99999;
-      },
+      zIndex: 9999999,
     });
     if (!result.isConfirmed) return;
 
     try {
       const response = await fetch(
-        `http://localhost:4000/api/bills/${bill.bill_id}`,
+        `https://api.horplus.work/api/bills/${bill.bill_id}`,
         {
           method: "DELETE",
         }
@@ -278,9 +314,7 @@ function RoomBills() {
         text: "บิลถูกลบเรียบร้อยแล้ว",
         timer: 2000,
         showConfirmButton: false,
-        didOpen: (popup) => {
-          popup.parentNode.style.zIndex = 99999;
-        },
+        zIndex: 9999999,
       });
       fetchBills();
     } catch (error) {
@@ -289,9 +323,7 @@ function RoomBills() {
         icon: "error",
         title: "เกิดข้อผิดพลาด",
         text: "เกิดข้อผิดพลาดในการลบบิล",
-        didOpen: (popup) => {
-          popup.parentNode.style.zIndex = 99999;
-        },
+        zIndex: 9999999,
       });
     }
   };
@@ -299,161 +331,231 @@ function RoomBills() {
   return (
     <>
       <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={2}
+        sx={{
+          display: "flex",
+          minHeight: "100vh",
+          background: "linear-gradient(to bottom, #E07B39 40%, #DCE4C9 10%)",
+        }}
       >
-        <Button
-          variant="contained"
-          startIcon={<ArrowBackIcon />}
-          sx={{
-            background: "linear-gradient(45deg, #ff6600, #ff6600)",
-            "&:hover": {
-              background: "linear-gradient(45deg, #ff6600, #ff6600)",
-            },
-          }}
-          onClick={() => navigate(-1)}
-        >
-          กลับสู่หน้าหลัก
-        </Button>
-        <Button
-          variant="contained"
-          sx={{
-            background: "linear-gradient(45deg, #ff6600, #ff6600)",
-            "&:hover": {
-              background: "linear-gradient(45deg, #ff6600, #ff6600)",
-            },
-          }}
-          onClick={handleOpenAddDialog}
-        >
-          เพิ่มข้อมูลบิล
-        </Button>
-      </Box>
+        <CssBaseline />
 
-      {/* ตารางบิล */}
-      <Grid justifyContent="center">
-        <Grid item xs={12} md={10} lg={10}>
-          <TableContainer
-            component={Paper}
-            elevation={6}
-            sx={{ borderRadius: 2 }}
+        {/* AppBar */}
+        <AppBar
+          position="fixed"
+          sx={{
+            backgroundColor: "#E07B39",
+            boxShadow: "0px 4px 15px #B6A28E",
+          }}
+        >
+          <Toolbar sx={{ minHeight: { xs: 56, sm: 64, md: 64 } }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={() => setDrawerOpen(true)}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              variant="h3"
+              noWrap
+              sx={{
+                flexGrow: 1,
+                textAlign: "center",
+                fontSize: { xs: "2rem", sm: "2.5rem", md: "2.5rem" },
+                fontWeight: "bold",
+              }}
+            >
+              ระบบจัดการบิล
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        {/* Drawer (Sidebar) */}
+        <Drawer
+          variant="temporary"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: 240,
+              backgroundColor: "#454545",
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
+        {/* Main Content ScrollBox */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            pt: 20,
+            p: { xs: 1, sm: 2 },
+            pb: 5,
+            overflowY: "auto",
+          }}
+        >
+          {/* Spacer เพื่อไม่ให้เนื้อหาถูก AppBar ทับ */}
+          <Toolbar sx={{ minHeight: 120 }} />
+
+          {/* Container สีขาว */}
+          <Box
+            sx={{
+              backgroundColor: "#fff",
+              borderRadius: 2,
+              boxShadow: "0px 4px 8px rgba(0,0,0,0.1)",
+              pt: 4,
+              mx: "auto",
+              width: { xs: "95%", sm: "90%", md: "1000px" },
+              p: 3,
+              mt: 4,
+            }}
           >
-            {loading ? (
-              <CircularProgress
-                sx={{ display: "block", margin: "20px auto" }}
-              />
-            ) : (
-              <Table>
-                <TableHead
+            {/* Header: "รายการบิล" และปุ่ม "เพิ่มข้อมูลบิล" อยู่ในบรรทัดเดียวกัน */}
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={3}
+            >
+              <Typography
+                variant="h1"
+                sx={{
+                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  border: "1px solid #E07B39",
+                  borderRadius: 1,
+                  p: "4px 8px",
+                }}
+              >
+                รายการบิล
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                sx={{
+                  background: "linear-gradient(45deg, #E07B39, #E07B39)",
+                  "&:hover": {
+                    background: "linear-gradient(45deg, #E07B39, #E07B39)",
+                  },
+                }}
+                onClick={handleOpenAddDialog}
+              >
+                เพิ่มข้อมูลบิล
+              </Button>
+            </Box>
+
+            {/* ScrollBox สำหรับรายการบิล */}
+            <Box
+              sx={{
+                maxHeight: "700px",
+                overflowY: "auto",
+                border: "1px solid #ccc",
+                borderRadius: 1,
+                p: 2,
+              }}
+            >
+              {loading ? (
+                <Box
                   sx={{
-                    backgroundColor: "#ff6600",
-                    "& th": {
-                      color: "white",
-                      fontWeight: "bold",
-                      textAlign: "center",
-                    },
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: 80,
                   }}
                 >
-                  <TableRow>
-                    <TableCell align="center">ห้อง</TableCell>
-                    <TableCell align="center">ผู้ใช้</TableCell>
-                    <TableCell align="center">สลิป</TableCell>
-                    <TableCell align="center">รูปมิตเตอร์</TableCell>
-                    <TableCell align="center">ค่าน้ำ (หน่วย)</TableCell>
-                    <TableCell align="center">ค่าไฟ (หน่วย)</TableCell>
-                    <TableCell align="center">ยอดเงิน</TableCell>
-                    <TableCell align="center">วันที่ครบกำหนด</TableCell>
-                    <TableCell align="center">การกระทำ</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {bills.map((bill) => (
-                    <TableRow key={bill.bill_id}>
-                      <TableCell align="center">
-                        {bill.room_number || "ไม่พบห้อง"}
-                      </TableCell>
-                      <TableCell align="center">
-                        {bill.username || "ไม่พบผู้ใช้"}
-                      </TableCell>
-                      <TableCell align="center">
-                        {bill.slip_path ? (
-                          <Box
-                            sx={{ cursor: "pointer" }}
-                            onClick={() =>
-                              handlePreviewOpen(
-                                `http://localhost:4000/${bill.slip_path}`
-                              )
-                            }
-                          >
-                            <img
-                              src={`http://localhost:4000/${bill.slip_path}`}
-                              alt="Slip"
-                              style={{ width: 50, height: 50 }}
-                            />
-                          </Box>
-                        ) : (
-                          "ไม่มีสลิป"
-                        )}
-                      </TableCell>
-                      <TableCell align="center">
-                        {bill.meter ? (
-                          <Box
-                            sx={{ cursor: "pointer" }}
-                            onClick={() =>
-                              handlePreviewOpen(
-                                `http://localhost:4000/${bill.meter}`
-                              )
-                            }
-                          >
-                            <img
-                              src={`http://localhost:4000/${bill.meter}`}
-                              alt="Meter"
-                              style={{ width: 50, height: 50 }}
-                            />
-                          </Box>
-                        ) : (
-                          "ไม่มีรูปมิตเตอร์"
-                        )}
-                      </TableCell>
-                      <TableCell align="center">{bill.water_units}</TableCell>
-                      <TableCell align="center">
-                        {bill.electricity_units}
-                      </TableCell>
-                      <TableCell align="center">
-                        {bill.total_amount
-                          ? Number(bill.total_amount).toFixed(2)
-                          : "0.00"}
-                      </TableCell>
-                      <TableCell align="center">
-                        {bill.due_date ? formatDate(bill.due_date) : "ไม่ระบุ"}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="แก้ไขข้อมูล">
-                          <IconButton
-                            color="primary"
-                            onClick={() => handleOpenEditDialog(bill)}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="ลบบิล">
-                          <IconButton
-                            color="error"
-                            onClick={() => handleDeleteBill(bill)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </TableContainer>
-        </Grid>
-      </Grid>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                bills.map((bill) => (
+                  <Paper
+                    key={bill.bill_id}
+                    sx={{
+                      p: 2,
+                      mb: 3,
+                      borderRadius: 1,
+                      backgroundColor: "#F5F5DC",
+                      boxShadow: "0px 2px 5px rgba(0,0,0,0.1)",
+                    }}
+                  >
+                    <Typography sx={{ mb: 1 }}>
+                      ห้อง: {bill.room_number || "ไม่พบห้อง"}
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>
+                      ผู้ใช้: {bill.username || "ไม่พบผู้ใช้"}
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>
+                      ค่าน้ำ (หน่วย): {bill.water_units}
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>
+                      ค่าไฟ (หน่วย): {bill.electricity_units}
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>
+                      ยอดเงิน:{" "}
+                      {bill.total_amount
+                        ? Number(bill.total_amount).toFixed(2)
+                        : "0.00"}
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>
+                      วันที่ครบกำหนด:{" "}
+                      {bill.due_date ? formatDate(bill.due_date) : "ไม่ระบุ"}
+                    </Typography>
+                    {/* ปุ่มดูสลิป และดูรูปมิตเตอร์ */}
+                    <Box sx={{ display: "flex", gap: 2, mb: 1 }}>
+                      {bill.slip_path && (
+                        <Button
+                          variant="outlined"
+                          onClick={() =>
+                            handlePreviewOpen(
+                              `https://api.horplus.work/${bill.slip_path}`
+                            )
+                          }
+                        >
+                          ดูสลิป
+                        </Button>
+                      )}
+                      {bill.meter && (
+                        <Button
+                          variant="outlined"
+                          onClick={() =>
+                            handlePreviewOpen(
+                              `https://api.horplus.work/${bill.meter}`
+                            )
+                          }
+                        >
+                          ดูรูปมิตเตอร์
+                        </Button>
+                      )}
+                    </Box>
+                    <Box sx={{ textAlign: "right" }}>
+                      <Tooltip title="แก้ไขบิล">
+                        <IconButton
+                          color="primary"
+                          onClick={() => handleOpenEditDialog(bill)}
+                          sx={{ mr: 1 }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="ลบบิล">
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDeleteBill(bill)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Paper>
+                ))
+              )}
+            </Box>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Dialog: เพิ่ม/แก้ไขบิล */}
       <Dialog
@@ -465,14 +567,14 @@ function RoomBills() {
       >
         <DialogTitle
           sx={{
-            bgcolor: "#ff6600",
+            bgcolor: "#E07B39",
             color: "white",
             fontWeight: "bold",
             textAlign: "center",
             fontSize: "1.5rem",
           }}
         >
-          {isEditing ? "การแก้ไขบิลเสร็จสมบูรณ์" : "การเพิ่มข้อมูลบิลใหม่"}
+          {isEditing ? "แก้ไขบิล" : "เพิ่มข้อมูลบิลใหม่"}
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
           <Box sx={{ mt: 2 }}>
@@ -483,7 +585,7 @@ function RoomBills() {
               variant="contained"
               component="label"
               sx={{
-                background: "linear-gradient(135deg, #ff6600 0%, #ff6600 100%)",
+                background: "linear-gradient(135deg, #E07B39 0%, #E07B39 100%)",
                 color: "white",
                 borderRadius: "20px",
                 paddingX: 3,
@@ -491,7 +593,7 @@ function RoomBills() {
                 textTransform: "none",
                 "&:hover": {
                   background:
-                    "linear-gradient(135deg, #ff6600 0%, #ff6600 100%)",
+                    "linear-gradient(135deg, #E07B39 0%, #E07B39 100%)",
                 },
               }}
             >
@@ -517,7 +619,7 @@ function RoomBills() {
                   src={
                     currentBill.meter instanceof File
                       ? URL.createObjectURL(currentBill.meter)
-                      : `http://localhost:4000/${currentBill.meter}`
+                      : `https://api.horplus.work/${currentBill.meter}`
                   }
                   alt="Meter Preview"
                   style={{
@@ -529,7 +631,6 @@ function RoomBills() {
               </Box>
             )}
           </Box>
-
           <TextField
             margin="dense"
             label="ค่าน้ำ (หน่วย)"
@@ -582,14 +683,14 @@ function RoomBills() {
             onClick={handleSaveBill}
             variant="contained"
             sx={{
-              background: "linear-gradient(135deg, #ff6600 0%, #ff6600 100%)",
+              background: "linear-gradient(135deg, #E07B39 0%, #E07B39 100%)",
               color: "white",
               borderRadius: "20px",
               paddingX: 3,
               paddingY: 1.2,
               textTransform: "none",
               "&:hover": {
-                background: "linear-gradient(135deg, #ff6600 0%, #ff6600 100%)",
+                background: "linear-gradient(135deg, #E07B39 0%, #E07B39 100%)",
               },
             }}
           >
@@ -606,17 +707,6 @@ function RoomBills() {
         fullWidth
         sx={{ "& .MuiPaper-root": { borderRadius: "15px", padding: "16px" } }}
       >
-        <DialogTitle
-          sx={{
-            bgcolor: "#ff6600",
-            color: "white",
-            fontWeight: "bold",
-            textAlign: "center",
-            fontSize: "1.5rem",
-          }}
-        >
-          ตัวอย่างรูป
-        </DialogTitle>
         <DialogContent>
           <Box
             sx={{
@@ -645,7 +735,7 @@ function RoomBills() {
             onClick={handlePreviewClose}
             variant="contained"
             sx={{
-              background: "linear-gradient(135deg, #ff6600 0%, #ff6600 100%)",
+              background: "linear-gradient(135deg, #E07B39 0%, #E07B39 100%)",
               color: "white",
               borderRadius: "20px",
               paddingX: 4,
@@ -654,7 +744,7 @@ function RoomBills() {
               fontSize: "16px",
               fontWeight: "bold",
               "&:hover": {
-                background: "linear-gradient(135deg, #ff6600 0%, #ff6600 100%)",
+                background: "linear-gradient(135deg, #E07B39 0%, #E07B39 100%)",
               },
             }}
           >
